@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대전광역시 주소 검색</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #map {
+            width: 100%;
+            height: 500px;
+            margin-top: 10px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>대전광역시 주소 검색</h2>
+        <input type="text" id="addressInput" placeholder="주소를 입력하세요">
+        <button onclick="searchAddress()">검색</button>
+        <button onclick="saveMarker()">저장</button>
+        <button onclick="deleteMarker()">삭제</button>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- ✅ 카카오 지도 API를 먼저 로드해야 함 -->
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=960a6f5b98a7f677aaba51752e1febcc&libraries=services"></script>
+
+    <script>
+        let map;
+        let marker = null;
+        let geocoder;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof kakao === "undefined") {
+                alert("카카오 맵 API 로드 실패! API 키 또는 인터넷 연결을 확인하세요.");
+                return;
+            }
+
+            const mapContainer = document.getElementById('map');
+            const mapOption = {
+                center: new kakao.maps.LatLng(36.3504, 127.3845), // 대전광역시 중심 좌표
+                level: 7
+            };
+
+            map = new kakao.maps.Map(mapContainer, mapOption);
+            geocoder = new kakao.maps.services.Geocoder();
+
+            const zoomControl = new kakao.maps.ZoomControl();
+            map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+
+            loadSavedMarker();
+        });
+
+        function searchAddress() {
+            const address = document.getElementById('addressInput').value;
+            if (!address) {
+                alert("주소를 입력하세요.");
+                return;
+            }
+
+            geocoder.addressSearch(address, function (result, status) {
+                if (status === kakao.maps.services.Status.OK) {
+                    const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+
+                    if (marker) {
+                        marker.setMap(null);
+                    }
+
+                    marker = new kakao.maps.Marker({
+                        map: map,
+                        position: coords
+                    });
+
+                    map.setCenter(coords);
+                } else {
+                    alert('주소를 찾을 수 없습니다.');
+                }
+            });
+        }
+
+        function saveMarker() {
+            if (!marker) {
+                alert("먼저 주소를 검색하고 마커를 생성하세요.");
+                return;
+            }
+
+            const position = marker.getPosition();
+            const savedData = {
+                lat: position.getLat(),
+                lng: position.getLng(),
+                timestamp: new Date().toISOString()
+            };
+
+            localStorage.setItem('savedMarker', JSON.stringify(savedData));
+            alert("위치가 저장되었습니다.");
+        }
+
+        function loadSavedMarker() {
+            const savedData = localStorage.getItem('savedMarker');
+            if (savedData) {
+                const { lat, lng } = JSON.parse(savedData);
+                const coords = new kakao.maps.LatLng(lat, lng);
+
+                marker = new kakao.maps.Marker({
+                    map: map,
+                    position: coords
+                });
+
+                map.setCenter(coords);
+            }
+        }
+
+        function deleteMarker() {
+            if (!marker) {
+                alert("삭제할 마커가 없습니다.");
+                return;
+            }
+
+            marker.setMap(null);
+            marker = null;
+            localStorage.removeItem('savedMarker');
+            alert("마커가 삭제되었습니다.");
+        }
+    </script>
+
+</body>
+</html>
