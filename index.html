@@ -33,18 +33,18 @@
         <input type="text" id="addressInput" placeholder="주소를 입력하세요">
         <button onclick="searchAddress()">검색</button>
         <button onclick="saveMarker()">저장</button>
-        <button onclick="deleteMarker()">삭제</button>
+        <button onclick="deleteAllMarkers()">전체 삭제</button>
     </div>
 
     <div id="map"></div>
 
-    <!-- ✅ 카카오 지도 API를 먼저 로드해야 함 -->
+    <!-- ✅ 카카오 지도 API -->
     <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=960a6f5b98a7f677aaba51752e1febcc&libraries=services"></script>
 
     <script>
         let map;
-        let marker = null;
         let geocoder;
+        let markers = []; // 마커 리스트
 
         document.addEventListener("DOMContentLoaded", function () {
             if (typeof kakao === "undefined") {
@@ -64,7 +64,7 @@
             const zoomControl = new kakao.maps.ZoomControl();
             map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
 
-            loadSavedMarker();
+            loadSavedMarkers();
         });
 
         function searchAddress() {
@@ -78,15 +78,12 @@
                 if (status === kakao.maps.services.Status.OK) {
                     const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
 
-                    if (marker) {
-                        marker.setMap(null);
-                    }
-
-                    marker = new kakao.maps.Marker({
+                    const marker = new kakao.maps.Marker({
                         map: map,
                         position: coords
                     });
 
+                    markers.push(marker); // 마커 리스트에 추가
                     map.setCenter(coords);
                 } else {
                     alert('주소를 찾을 수 없습니다.');
@@ -95,47 +92,44 @@
         }
 
         function saveMarker() {
-            if (!marker) {
+            if (markers.length === 0) {
                 alert("먼저 주소를 검색하고 마커를 생성하세요.");
                 return;
             }
 
-            const position = marker.getPosition();
-            const savedData = {
-                lat: position.getLat(),
-                lng: position.getLng(),
-                timestamp: new Date().toISOString()
-            };
+            const savedData = markers.map(marker => ({
+                lat: marker.getPosition().getLat(),
+                lng: marker.getPosition().getLng()
+            }));
 
-            localStorage.setItem('savedMarker', JSON.stringify(savedData));
+            localStorage.setItem('savedMarkers', JSON.stringify(savedData));
             alert("위치가 저장되었습니다.");
         }
 
-        function loadSavedMarker() {
-            const savedData = localStorage.getItem('savedMarker');
+        function loadSavedMarkers() {
+            const savedData = localStorage.getItem('savedMarkers');
             if (savedData) {
-                const { lat, lng } = JSON.parse(savedData);
-                const coords = new kakao.maps.LatLng(lat, lng);
-
-                marker = new kakao.maps.Marker({
-                    map: map,
-                    position: coords
+                const positions = JSON.parse(savedData);
+                positions.forEach(({ lat, lng }) => {
+                    const coords = new kakao.maps.LatLng(lat, lng);
+                    const marker = new kakao.maps.Marker({
+                        map: map,
+                        position: coords
+                    });
+                    markers.push(marker);
                 });
 
-                map.setCenter(coords);
+                if (markers.length > 0) {
+                    map.setCenter(markers[markers.length - 1].getPosition());
+                }
             }
         }
 
-        function deleteMarker() {
-            if (!marker) {
-                alert("삭제할 마커가 없습니다.");
-                return;
-            }
-
-            marker.setMap(null);
-            marker = null;
-            localStorage.removeItem('savedMarker');
-            alert("마커가 삭제되었습니다.");
+        function deleteAllMarkers() {
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+            localStorage.removeItem('savedMarkers');
+            alert("모든 마커가 삭제되었습니다.");
         }
     </script>
 
